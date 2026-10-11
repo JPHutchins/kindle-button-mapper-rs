@@ -1,6 +1,8 @@
 /* MapperManager - E-ink optimized stylesheet */
 /* WebKit 533 compatible: no flexbox, no grid, no CSS variables, no vh/vw */
 
+html { font-size: 20px; }
+
 * {
     margin: 0;
     padding: 0;
@@ -10,11 +12,11 @@
 
 body {
     font-family: sans-serif;
-    font-size: 40px;
+    font-size: 2rem;
     line-height: 1.4;
     color: #000;
     background: #fff;
-    padding: 8px 32px 80px 32px;
+    padding: 0.4rem 1.6rem 4rem 1.6rem;
     -webkit-text-size-adjust: 100%;
 }
 
@@ -25,31 +27,31 @@ html, body {
 .header {
     position: relative;
     text-align: center;
-    padding: 4px 0 10px 0;
+    padding: 0.2rem 0 0.5rem 0;
     border-bottom: 3px solid #000;
 }
 
 .header h1 {
-    font-size: 52px;
+    font-size: 2.6rem;
     font-weight: bold;
-    margin: 0 0 4px 0;
+    margin: 0 0 0.2rem 0;
 }
 
 .btn-close {
     position: absolute;
     right: 0;
-    top: 6px;
-    min-width: 70px;
-    min-height: 70px;
-    padding: 10px 18px;
-    font-size: 44px;
+    top: 0.3rem;
+    min-width: 3.5rem;
+    min-height: 3.5rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 2.2rem;
     font-weight: bold;
     border: 3px solid #000;
     background: #fff;
     color: #000;
     -webkit-appearance: none;
-    -webkit-border-radius: 6px;
-    border-radius: 6px;
+    -webkit-border-radius: 0.3rem;
+    border-radius: 0.3rem;
     line-height: 1;
 }
 
@@ -60,7 +62,7 @@ html, body {
 .tab-bar {
     overflow: hidden;
     border: 2px solid #000;
-    margin: 0 0 10px 0;
+    margin: 0 0 0.5rem 0;
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
 }
@@ -68,8 +70,8 @@ html, body {
 .tab {
     float: left;
     width: 33.33%;
-    padding: 14px 0;
-    font-size: 32px;
+    padding: 0.7rem 0;
+    font-size: 1.6rem;
     font-weight: bold;
     background: #fff;
     color: #000;
@@ -87,23 +89,23 @@ html, body {
     display: none;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 32px;
+    padding-right: 1.6rem;
 }
 .tab-content.tab-visible { display: block; }
 
 /* ---- Section labels ---- */
 
 .section-label {
-    font-size: 28px;
+    font-size: 1.4rem;
     font-weight: bold;
     text-transform: uppercase;
-    letter-spacing: 3px;
-    padding: 14px 0 6px 0;
+    letter-spacing: 0.15rem;
+    padding: 0.7rem 0 0.3rem 0;
 }
 
 .section-label-row {
     overflow: hidden;
-    padding: 14px 0 6px 0;
+    padding: 0.7rem 0 0.3rem 0;
 }
 
 .section-label-row .section-label {
@@ -113,14 +115,14 @@ html, body {
 
 .btn-small {
     float: right;
-    margin-left: 10px;
-    padding: 8px 16px;
-    font-size: 30px;
+    margin-left: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 1.5rem;
     border: 2px solid #000;
     background: #fff;
     color: #000;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
+    -webkit-border-radius: 0.2rem;
+    border-radius: 0.2rem;
     -webkit-appearance: none;
 }
 
@@ -129,36 +131,36 @@ html, body {
 /* ---- Device picker (top of bindings) ---- */
 
 .device-picker-row {
-    padding: 12px 0 4px 0;
+    padding: 0.6rem 0 0.2rem 0;
 }
 
 .picker-label {
     display: block;
-    font-size: 28px;
+    font-size: 1.4rem;
     font-weight: bold;
     text-transform: uppercase;
-    letter-spacing: 3px;
-    padding-bottom: 6px;
+    letter-spacing: 0.15rem;
+    padding-bottom: 0.3rem;
 }
 
 .device-pills {
     overflow: hidden;
-    padding-bottom: 6px;
+    padding-bottom: 0.3rem;
 }
 
 .device-pill {
     float: left;
-    min-height: 64px;
-    padding: 10px 22px;
-    margin: 0 10px 10px 0;
-    font-size: 30px;
+    min-height: 3.2rem;
+    padding: 0.5rem 1.1rem;
+    margin: 0 0.5rem 0.5rem 0;
+    font-size: 1.5rem;
     font-weight: bold;
     background: #fff;
     color: #000;
     border: 3px solid #000;
     -webkit-appearance: none;
-    -webkit-border-radius: 32px;
-    border-radius: 32px;
+    -webkit-border-radius: 1.6rem;
+    border-radius: 1.6rem;
     cursor: pointer;
 }
 
@@ -166,40 +168,40 @@ html, body {
 
 .device-pill-add {
     float: left;
-    min-width: 64px;
-    min-height: 64px;
-    margin: 0 0 10px 0;
-    padding: 10px 22px;
-    font-size: 32px;
+    min-width: 3.2rem;
+    min-height: 3.2rem;
+    margin: 0 0 0.5rem 0;
+    padding: 0.5rem 1.1rem;
+    font-size: 1.6rem;
     font-weight: bold;
     background: #fff;
     color: #000;
     border: 3px dashed #000;
     -webkit-appearance: none;
-    -webkit-border-radius: 32px;
-    border-radius: 32px;
+    -webkit-border-radius: 1.6rem;
+    border-radius: 1.6rem;
 }
 
 .device-pill-add:active { background: #000; color: #fff; }
 
 .detail-id-caption {
     font-family: monospace;
-    font-size: 24px;
+    font-size: 1.2rem;
     color: #555;
-    padding: 4px 4px 14px 4px;
+    padding: 0.2rem 0.2rem 0.7rem 0.2rem;
     text-align: right;
 }
 
 .info-btn {
     display: inline-block;
-    width: 40px;
-    height: 40px;
-    margin-left: 8px;
-    font-size: 24px;
+    width: 2rem;
+    height: 2rem;
+    margin-left: 0.4rem;
+    font-size: 1.2rem;
     font-weight: bold;
     font-style: italic;
-    -webkit-border-radius: 20px;
-    border-radius: 20px;
+    -webkit-border-radius: 1rem;
+    border-radius: 1rem;
     border: 2px solid #000;
     background: #fff;
     color: #000;
@@ -212,14 +214,14 @@ html, body {
 .detail-input {
     float: right;
     width: 60%;
-    font-size: 32px;
-    padding: 10px 12px;
+    font-size: 1.6rem;
+    padding: 0.5rem 0.6rem;
     border: 3px solid #000;
     background: #fff;
     color: #000;
     -webkit-appearance: none;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
+    -webkit-border-radius: 0.2rem;
+    border-radius: 0.2rem;
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
 }
@@ -234,21 +236,21 @@ html, body {
 
 /* ---- Binding rows ---- */
 
-.binding-list { margin-bottom: 12px; }
+.binding-list { margin-bottom: 0.6rem; }
 
 .binding-row {
-    padding: 14px 0;
+    padding: 0.7rem 0;
     border-top: 1px solid #000;
     overflow: hidden;
     cursor: pointer;
 }
 
-.binding-row:last-child { border-bottom: 1px solid #000; }
+.binding-row:last-child { border-bottom: 0.05rem solid #000; }
 
 .binding-row:active { background: #e0e0e0; }
 
 .binding-slot {
-    font-size: 36px;
+    font-size: 1.8rem;
     font-weight: bold;
     float: left;
     max-width: 40%;
@@ -256,9 +258,9 @@ html, body {
 }
 
 .binding-action {
-    font-size: 32px;
+    font-size: 1.6rem;
     float: left;
-    padding-left: 20px;
+    padding-left: 1rem;
     max-width: 50%;
     overflow: hidden;
     color: #333;
@@ -266,20 +268,20 @@ html, body {
 
 .binding-del {
     float: right;
-    min-width: 80px;
-    min-height: 60px;
-    padding: 8px 18px;
-    font-size: 34px;
+    min-width: 4rem;
+    min-height: 3rem;
+    padding: 0.4rem 0.9rem;
+    font-size: 1.7rem;
     border: 2px dashed #000;
     background: #fff;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
+    -webkit-border-radius: 0.2rem;
+    border-radius: 0.2rem;
     -webkit-appearance: none;
 }
 
 .binding-del:active { background: #000; color: #fff; }
 
-.binding-ren { margin-right: 10px; font-size: 26px; }
+.binding-ren { margin-right: 0.5rem; font-size: 1.3rem; }
 
 /* detail-input floats right to sit beside a label; here it is the whole row. */
 #nameInput {
@@ -290,10 +292,10 @@ html, body {
 }
 
 .binding-empty {
-    padding: 30px 0;
+    padding: 1.5rem 0;
     text-align: center;
     font-style: italic;
-    font-size: 32px;
+    font-size: 1.6rem;
 }
 
 /* ---- Buttons ---- */
@@ -301,18 +303,18 @@ html, body {
 .btn {
     display: block;
     width: 100%;
-    min-height: 76px;
-    padding: 16px 28px;
-    font-size: 36px;
+    min-height: 3.8rem;
+    padding: 0.8rem 1.4rem;
+    font-size: 1.8rem;
     font-weight: bold;
     border: 3px solid #000;
     background: #fff;
     color: #000;
     text-align: center;
-    margin-bottom: 12px;
+    margin-bottom: 0.6rem;
     -webkit-appearance: none;
-    -webkit-border-radius: 6px;
-    border-radius: 6px;
+    -webkit-border-radius: 0.3rem;
+    border-radius: 0.3rem;
 }
 
 .btn:active { background: #000; color: #fff; }
@@ -332,49 +334,49 @@ html, body {
 }
 .btn-third + .btn-third { margin-left: 2%; }
 
-.actions-row { overflow: hidden; padding-top: 20px; }
+.actions-row { overflow: hidden; padding-top: 1rem; }
 
 /* ---- Device list ---- */
 
-.device-list { margin-bottom: 12px; }
+.device-list { margin-bottom: 0.6rem; }
 
 .device-row {
-    padding: 14px 0;
+    padding: 0.7rem 0;
     border-top: 1px solid #000;
     overflow: hidden;
 }
 
-.device-row:last-child { border-bottom: 1px solid #000; }
+.device-row:last-child { border-bottom: 0.05rem solid #000; }
 
 .device-row.selected { background: #e0e0e0; }
 
 .device-row-name {
-    font-size: 36px;
+    font-size: 1.8rem;
     font-weight: bold;
 }
 
 .device-row-path {
     font-family: monospace;
-    font-size: 28px;
+    font-size: 1.4rem;
     color: #333;
 }
 
 /* ---- Detail rows ---- */
 
 .detail-row {
-    padding: 14px 0;
+    padding: 0.7rem 0;
     border-bottom: 1px solid #000;
     overflow: hidden;
 }
 
 .detail-label {
     font-weight: bold;
-    font-size: 36px;
+    font-size: 1.8rem;
     float: left;
 }
 
 .detail-value {
-    font-size: 36px;
+    font-size: 1.8rem;
     float: right;
     max-width: 60%;
     text-align: right;
@@ -383,37 +385,37 @@ html, body {
 
 .detail-mono {
     font-family: monospace;
-    font-size: 30px;
+    font-size: 1.5rem;
 }
 
 /* ---- Toggle ---- */
 
 .toggle {
     float: right;
-    width: 120px;
-    height: 60px;
-    border: 4px solid #000;
-    -webkit-border-radius: 30px;
-    border-radius: 30px;
+    width: 6rem;
+    height: 3rem;
+    border: 0.2rem solid #000;
+    -webkit-border-radius: 1.5rem;
+    border-radius: 1.5rem;
     background: #fff;
-    padding: 4px;
+    padding: 0.2rem;
     -webkit-appearance: none;
     position: relative;
 }
 
 .toggle-knob {
     display: block;
-    width: 44px;
-    height: 44px;
-    -webkit-border-radius: 22px;
-    border-radius: 22px;
+    width: 2.2rem;
+    height: 2.2rem;
+    -webkit-border-radius: 1.1rem;
+    border-radius: 1.1rem;
     background: #000;
     position: absolute;
-    top: 4px;
-    left: 4px;
+    top: 0.2rem;
+    left: 0.2rem;
 }
 
-.toggle.on .toggle-knob { left: auto; right: 4px; }
+.toggle.on .toggle-knob { left: auto; right: 0.2rem; }
 
 /* ---- Overlays ---- */
 
@@ -437,67 +439,67 @@ html, body {
     width: 84%;
     border: 4px solid #000;
     background: #fff;
-    padding: 28px;
+    padding: 1.4rem;
 }
 
-.dialog-tall { top: 6%; height: 88%; overflow: hidden; padding-bottom: 110px; }
+.dialog-tall { top: 6%; height: 88%; overflow: hidden; padding-bottom: 5.5rem; }
 .dialog-wide { left: 2%; width: 96%; }
 
 #logsActions {
     position: absolute;
-    left: 28px;
-    right: 28px;
-    bottom: 28px;
+    left: 1.4rem;
+    right: 1.4rem;
+    bottom: 1.4rem;
 }
 
 .logs-content {
     position: absolute;
-    left: 28px;
-    right: 28px;
-    top: 100px;
-    bottom: 132px;
+    left: 1.4rem;
+    right: 1.4rem;
+    top: 5rem;
+    bottom: 6.6rem;
     overflow: auto;
     font-family: monospace;
-    font-size: 22px;
+    font-size: 1.1rem;
     line-height: 1.3;
     white-space: pre-wrap;
     word-break: break-all;
     text-align: left;
     border: 2px solid #000;
-    padding: 12px;
+    padding: 0.6rem;
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
 }
 .dialog-tall .dialog-buttons,
 .dialog-tall .device-detail-actions {
     position: absolute;
-    left: 28px;
-    right: 28px;
-    bottom: 28px;
+    left: 1.4rem;
+    right: 1.4rem;
+    bottom: 1.4rem;
     padding-top: 0;
 }
-.device-detail-actions .actions-row { padding-top: 0; padding-bottom: 12px; }
+.device-detail-actions .actions-row { padding-top: 0; padding-bottom: 0.6rem; }
 
 .dialog p {
-    font-size: 38px;
-    margin-bottom: 18px;
+    font-size: 1.9rem;
+    margin-bottom: 0.9rem;
     line-height: 1.4;
     text-align: center;
 }
 
-.dialog-buttons { overflow: hidden; padding-top: 16px; }
+.dialog-buttons { overflow: hidden; padding-top: 0.8rem; }
 .dialog-buttons .btn { float: left; width: 100%; margin: 0; }
 
 .tab-bar-inline {
-    margin-bottom: 10px;
+    margin-bottom: 0.5rem;
     border-bottom: 2px solid #000;
 }
 
 .action-tab {
     float: left;
     width: 20%;
-    padding: 14px 0;
-    font-size: 24px;
+    padding: 0.7rem 0;
+    font-size: 1.2rem;
     font-weight: bold;
     background: #fff;
     color: #000;
@@ -513,17 +515,17 @@ html, body {
     height: 75%;
     overflow: auto;
     border: 2px solid #000;
-    padding: 6px;
-    margin-bottom: 14px;
+    padding: 0.3rem;
+    margin-bottom: 0.7rem;
 }
 
 .action-search {
     display: none;
     width: 100%;
-    font-size: 32px;
-    padding: 12px;
+    font-size: 1.6rem;
+    padding: 0.6rem;
     border: 3px solid #000;
-    margin-bottom: 10px;
+    margin-bottom: 0.5rem;
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
 }
@@ -532,10 +534,10 @@ html, body {
 .action-list.with-search { height: 68%; }
 
 .koreader-status {
-    font-size: 26px;
+    font-size: 1.3rem;
     line-height: 1.3;
-    padding: 10px 12px;
-    margin-bottom: 10px;
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.5rem;
     border: 3px solid #000;
     background: #000;
     color: #fff;
@@ -548,49 +550,49 @@ html, body {
 
 .action-custom { display: none; }
 .action-custom.visible { display: block; }
-.action-custom .raw-config { min-height: 320px; }
+.action-custom .raw-config { min-height: 16rem; }
 
 .action-item {
-    padding: 14px 8px;
+    padding: 0.7rem 0.4rem;
     border-bottom: 1px solid #000;
-    font-size: 32px;
+    font-size: 1.6rem;
 }
 
 .action-item:active { background: #000; color: #fff; }
 
 .action-id {
     font-family: monospace;
-    font-size: 24px;
+    font-size: 1.2rem;
     color: #555;
     float: right;
 }
 
 .action-item:active .action-id { color: #ccc; }
 
-.add-options { margin-bottom: 14px; overflow: hidden; }
+.add-options { margin-bottom: 0.7rem; overflow: hidden; }
 /* Two per row: the list outgrew the screen once sticks and swipes joined it,
    and scrolling a dialog on eink is worse than a narrower button. */
-.add-options .add-opt { float: left; width: 48%; margin: 0 1% 10px; }
+.add-options .add-opt { float: left; width: 48%; margin: 0 1% 0.5rem; }
 
 /* ---- Raw config ---- */
 
 .raw-config {
     width: 100%;
-    min-height: 480px;
+    min-height: 24rem;
     font-family: monospace;
-    font-size: 24px;
-    padding: 12px;
+    font-size: 1.2rem;
+    padding: 0.6rem;
     border: 2px solid #000;
-    margin-bottom: 12px;
+    margin-bottom: 0.6rem;
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
 }
 
 .hint {
-    font-size: 28px;
+    font-size: 1.4rem;
     font-style: italic;
     color: #333;
-    padding: 6px 0 12px 0;
+    padding: 0.3rem 0 0.6rem 0;
 }
 
 /* ---- Message bar ---- */
@@ -598,12 +600,12 @@ html, body {
 .message-bar {
     display: none;
     position: fixed;
-    bottom: 60px;
+    bottom: 3rem;
     left: 0;
     width: 100%;
-    padding: 16px 20px;
+    padding: 0.8rem 1rem;
     border-top: 3px solid #000;
-    font-size: 32px;
+    font-size: 1.6rem;
     font-weight: bold;
     text-align: center;
     background: #e0e0e0;
@@ -621,8 +623,8 @@ html, body {
     left: 0;
     width: 100%;
     text-align: center;
-    font-size: 26px;
-    padding: 10px 20px 6px 20px;
+    font-size: 1.3rem;
+    padding: 0.5rem 1rem 0.3rem 1rem;
     border-top: 2px solid #000;
     background: #fff;
 }
