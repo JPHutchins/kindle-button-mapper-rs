@@ -200,7 +200,7 @@ impl Mapper {
                     if should_repeat {
                         if let Some(script) = self.mappings.get(&key) {
                             debug!("Repeat: {:?} (code: {}) -> {}", key, key.code(), script);
-                            execute_script(script);
+                            action::repeat(script);
                             self.last_repeat.insert(key, Instant::now());
                             // Mark as fired so release doesn't trigger again
                             self.long_press_fired.insert(key, true);
@@ -338,7 +338,7 @@ impl Mapper {
                     }
                 } else if let Some(script) = self.dpad_mappings.get(&dir) {
                     debug!("D-pad repeat: {:?} -> {}", dir, script);
-                    execute_script(script);
+                    action::repeat(script);
                 }
             }
         }
@@ -498,7 +498,7 @@ impl Mapper {
                     }
                 } else if let Some(script) = self.trigger_mappings.get(&trigger) {
                     debug!("Trigger repeat: {:?} -> {}", trigger, script);
-                    execute_script(script);
+                    action::repeat(script);
                 }
             }
         }

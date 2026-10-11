@@ -1,6 +1,7 @@
 use crate::{koreader, vkeyboard};
 use log::{debug, error, info};
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::OnceLock;
 use std::thread;
@@ -17,20 +18,50 @@ enum Step {
 /// a `/bin/sh` plus a `curl` per press costs more than the page turn itself.
 /// Everything else goes to the shell.
 pub fn run(script: &str) {
+    let busy = Busy::new();
     match plan(script) {
-        Some(steps) => queue(script.to_string(), steps),
-        None => spawn_shell(script),
+        Some(steps) => queue(script.to_string(), steps, busy),
+        None => spawn_shell(script, busy),
+    }
+}
+
+/// Run a held key's repeat, unless an action is still running. A repeat that
+/// waits behind a slow page turn lands after the button is released.
+pub fn repeat(script: &str) {
+    if BUSY.load(Ordering::SeqCst) > 0 {
+        debug!("Dropped repeat, an action is still running: {}", script);
+        return;
+    }
+    run(script);
+}
+
+static BUSY: AtomicUsize = AtomicUsize::new(0);
+
+/// Counts an action as running until dropped.
+struct Busy;
+
+impl Busy {
+    fn new() -> Self {
+        BUSY.fetch_add(1, Ordering::SeqCst);
+        Busy
+    }
+}
+
+impl Drop for Busy {
+    fn drop(&mut self) {
+        BUSY.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
 /// Run a shell command line, without waiting for it.
-pub fn spawn_shell(script: &str) {
+fn spawn_shell(script: &str, busy: Busy) {
     match Command::new("/bin/sh").args(["-c", script]).spawn() {
         Ok(mut child) => {
             // Reap elsewhere, no zombies.
             let started = Instant::now();
             let script = script.to_string();
             thread::spawn(move || {
+                let _busy = busy;
                 let _ = child.wait();
                 log_duration(started, &script);
             });
@@ -50,28 +81,28 @@ fn log_duration(started: Instant, script: &str) {
 
 /// One thread, so a held button cannot overtake itself and the event loop
 /// never waits on a socket.
-fn queue(script: String, steps: Vec<Step>) {
-    static QUEUE: OnceLock<Sender<(String, Vec<Step>)>> = OnceLock::new();
+fn queue(script: String, steps: Vec<Step>, busy: Busy) {
+    static QUEUE: OnceLock<Sender<(String, Vec<Step>, Busy)>> = OnceLock::new();
     let tx = QUEUE.get_or_init(|| {
-        let (tx, rx) = mpsc::channel::<(String, Vec<Step>)>();
+        let (tx, rx) = mpsc::channel::<(String, Vec<Step>, Busy)>();
         thread::Builder::new()
             .name("actions".into())
             .spawn(move || {
-                for (script, steps) in rx {
+                for (script, steps, busy) in rx {
                     let started = Instant::now();
-                    execute(&script, &steps);
+                    execute(&script, &steps, busy);
                     log_duration(started, &script);
                 }
             })
             .expect("spawn action thread");
         tx
     });
-    if let Err(e) = tx.send((script, steps)) {
+    if let Err(e) = tx.send((script, steps, busy)) {
         error!("Action thread is gone: {}", e);
     }
 }
 
-fn execute(script: &str, steps: &[Step]) {
+fn execute(script: &str, steps: &[Step], busy: Busy) {
     for step in steps {
         match step {
             Step::Koreader(event) => {
@@ -85,7 +116,7 @@ fn execute(script: &str, steps: &[Step]) {
                 }
                 // Nothing to inject into on this firmware, so hand it back to
                 // the script, which taps the screen instead.
-                spawn_shell(script);
+                spawn_shell(script, busy);
                 return;
             }
         }
@@ -195,6 +226,17 @@ fn native_key(cmd: &str) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repeat_is_dropped_while_an_action_runs() {
+        let marker = std::env::temp_dir().join(format!("kbm-repeat-{}", std::process::id()));
+        let script = format!("touch {}", marker.display());
+        let busy = Busy::new();
+        repeat(&script);
+        drop(busy);
+        thread::sleep(std::time::Duration::from_millis(200));
+        assert!(!marker.exists());
+    }
 
     #[test]
     fn page_turns_are_planned() {
