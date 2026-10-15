@@ -327,6 +327,17 @@ fn run_event_loop(
     set_nonblocking(device.as_raw_fd());
     let ranges = stick_ranges(device);
     let touch_device = input::device_reports_contacts(device);
+    if touch_device && cfg.contact_shadowed() {
+        warn!(
+            "[{id}] reads as a touch device: its BTN_TOUCH, BTN_TOOL and left stick bindings \
+             no longer fire, capture those presses again to bind them as gestures",
+            id = cfg.id
+        );
+    }
+    let tracker = |s: &WorkerSettings, position: gesture::Point| {
+        touch_device.then(|| gesture::ContactTracker::new(ranges.clone(), s).starting_at(position))
+    };
+    let mut contacts = tracker(settings, contact_position(device, &ranges));
     let mut grab = grab;
     let mut grabbed = grab;
     let mut keyboard = wants_keyboard(cfg, device).then(vkeyboard::hold);
@@ -380,6 +391,7 @@ fn run_event_loop(
                         layout::set_key_repeat(delay, rate);
                     }
                     *mapper = Mapper::new(&fresh, settings);
+                    contacts = tracker(settings, contact_position(device, &ranges));
                     *cfg = fresh;
                     let want = wants_keyboard(cfg, device);
                     if want != keyboard.is_some() {
@@ -425,7 +437,13 @@ fn run_event_loop(
         };
 
         if paused {
-            for _ in events {} // drain; these presses belong to capture
+            // drain; these presses belong to capture
+            for event in events {
+                contacts.iter_mut().for_each(|tracker| {
+                    tracker.feed(&event);
+                });
+            }
+            contacts.iter_mut().for_each(gesture::ContactTracker::reset);
             continue;
         }
 
@@ -433,16 +451,23 @@ fn run_event_loop(
 
         let mut activity = false;
         for event in events {
+            match contacts.as_mut().map(|c| c.feed(&event)) {
+                Some(gesture::ContactEvent::Finished(named)) => {
+                    activity = true;
+                    mapper.handle_gesture(&named);
+                    continue;
+                }
+                Some(gesture::ContactEvent::Part) => {
+                    activity = true;
+                    continue;
+                }
+                Some(gesture::ContactEvent::Other) | None => {}
+            }
             match event.kind() {
                 InputEventKind::Synchronization(_) => {
-                    mapper.handle_sync();
                     if relay {
                         vkeyboard::pointer_sync();
                     }
-                }
-                InputEventKind::Key(key) if key.code() == 330 && touch_device => {  // BTN_TOUCH
-                    activity = true;
-                    mapper.handle_touch(event.value() == 1);
                 }
                 InputEventKind::Key(key) => {
                     activity = true;
@@ -466,17 +491,9 @@ fn run_event_loop(
                             activity = true;
                             mapper.handle_trigger(code, event.value());
                         }
-                        0 | 1 if touch_device => {
-                            activity = true;
-                            mapper.handle_touch_move(code == 0, stick_percent(&ranges, code, event.value()));
-                        }
                         0 | 1 | 3 | 4 => {
                             activity = true;
                             mapper.handle_stick(code, stick_percent(&ranges, code, event.value()));
-                        }
-                        53 | 54 => {
-                            activity = true;
-                            mapper.handle_touch_move(code == 53, stick_percent(&ranges, code, event.value()));
                         }
                         _ => {}
                     }
@@ -544,6 +561,17 @@ pub fn stick_ranges(dev: &evdev::Device) -> HashMap<u16, (i32, i32)> {
             Some((code, ((i.minimum + i.maximum) / 2, half)))
         })
         .collect()
+}
+
+pub fn contact_position(dev: &evdev::Device, ranges: &HashMap<u16, (i32, i32)>) -> gesture::Point {
+    let states = dev.get_abs_state().ok();
+    let percent = |code: u16| {
+        states
+            .as_ref()
+            .and_then(|s| s.get(usize::from(code)))
+            .map_or(0, |i| stick_percent(ranges, code, i.value)) as f32
+    };
+    (percent(0), percent(1))
 }
 
 pub fn stick_percent(ranges: &HashMap<u16, (i32, i32)>, code: u16, value: i32) -> i32 {
