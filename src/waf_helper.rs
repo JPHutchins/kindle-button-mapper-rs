@@ -122,6 +122,7 @@ fn route(method: &str, path: &str, body: &str, config_path: &str) -> (u16, Strin
             Err(e) => (500, json_err(&format!("write failed: {}", e))),
         },
         ("GET", "/devices") => (200, devices_json()),
+        ("GET", "/resolve") => resolve(&query),
         ("GET", "/actions") => (200, actions_json()),
         ("GET", "/layouts") => (200, layouts_json()),
         ("GET", "/capture") => capture(&query, config_path),
@@ -301,6 +302,29 @@ fn devices_json() -> String {
         .map(|(p, n, u, _)| format!("{{\"path\":\"{}\",\"name\":\"{}\",\"uniq\":\"{}\"}}", esc(p), esc(n), esc(u)))
         .collect();
     format!("{{\"ok\":true,\"devices\":[{}]}}", items.join(","))
+}
+
+fn resolve(query: &std::collections::HashMap<String, String>) -> (u16, String) {
+    match resolve_handler(query).node_path() {
+        Ok(Some(path)) => (
+            200,
+            format!(
+                "{{\"ok\":true,\"path\":\"{path}\"}}",
+                path = esc(&path.display().to_string())
+            ),
+        ),
+        Ok(None) => (200, json_err("Device not connected")),
+        Err(e) => (200, json_err(&e)),
+    }
+}
+
+fn resolve_handler(
+    query: &std::collections::HashMap<String, String>,
+) -> crate::input::InputHandler {
+    let param = |key: &str| query.get(key).filter(|value| !value.is_empty()).cloned();
+    let flag = |key: &str| query.get(key).is_some_and(|value| value == "true");
+    crate::input::InputHandler::new(param("name"), param("uniq"), false, flag("mouse"))
+        .with_gestures(flag("gestures"))
 }
 
 fn actions_json() -> String {
@@ -669,7 +693,37 @@ fn esc(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::sort_nodes;
+    use super::{resolve_handler, sort_nodes, split_query};
+    use crate::input::InputHandler;
+
+    #[test]
+    fn resolve_reads_a_section_the_way_mapper_manager_sends_it() {
+        // resolveDevicePath's query, encoded by encodeURIComponent.
+        let resolved = |url| resolve_handler(&split_query(url).1);
+        let f3 = |mouse| {
+            InputHandler::new(
+                Some("F3 Touchscreen".to_string()),
+                Some("EB:80:03:88:70:8B".to_string()),
+                false,
+                mouse,
+            )
+        };
+
+        assert_eq!(
+            resolved("/resolve?name=F3%20Touchscreen&uniq=EB%3A80%3A03%3A88%3A70%3A8B&mouse=false&gestures=true"),
+            f3(false).with_gestures(true)
+        );
+        assert_eq!(
+            resolved("/resolve?name=F3%20Touchscreen&uniq=EB%3A80%3A03%3A88%3A70%3A8B&mouse=true&gestures=false"),
+            f3(true)
+        );
+        // An unset field is no identity at all, so node_path refuses it
+        // rather than matching every node.
+        assert_eq!(
+            resolved("/resolve?name=&uniq=&mouse=false&gestures=false"),
+            InputHandler::new(None, None, false, false)
+        );
+    }
 
     #[test]
     fn a_stick_that_centres_off_zero_still_names_both_directions() {

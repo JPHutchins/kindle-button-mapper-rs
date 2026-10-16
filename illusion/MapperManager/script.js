@@ -535,38 +535,24 @@ var MapperManager = (function() {
     function captureNewButton(longPress) {
         if (!currentDeviceId) { showMessage("Add a device first", true); return; }
         showMessage("Finding device...", false);
-        resolveDevicePath(currentDeviceId, function(devPath, err) {
+        resolveDevicePath(currentDeviceId, bindsGestures(currentDeviceId), function(devPath, err) {
             if (!devPath) { showMessage(err || "Device not connected", true); return; }
             startCapture(devPath, longPress);
         });
     }
 
-    function resolveDevicePath(id, cb) {
-        var uniq = bareUniq(getValue("device." + id, "uniq") || "");
-        var name = getValue("device." + id, "name") || "";
-        getJSON("/devices", function(data, err) {
-            if (err) { cb(null, "Devices: " + err); return; }
-            var list = data.devices || [];
-            var match = null;
-            for (var i = 0; i < list.length; i++) {
-                if (uniq && bareUniq(list[i].uniq || "") === uniq) {
-                    match = list[i];
-                    break;
-                }
-            }
-            if (!match && name) {
-                for (var j = 0; j < list.length; j++) {
-                    if (list[j].name === name) {
-                        match = list[j];
-                        break;
-                    }
-                }
-            }
-            if (match) {
-                cb(match.path, null);
-            } else {
-                cb(null, "Device not connected");
-            }
+    function bindsGestures(id) {
+        return (ini.sections["device." + id + ".gestures"] || []).length > 0;
+    }
+
+    function resolveDevicePath(id, gestures, cb) {
+        var section = "device." + id;
+        var mouse = (getValue(section, "type") || "").toLowerCase() === "mouse";
+        getJSON("/resolve?name=" + encodeURIComponent(getValue(section, "name") || "")
+            + "&uniq=" + encodeURIComponent(getValue(section, "uniq") || "")
+            + "&mouse=" + mouse + "&gestures=" + gestures, function(data, err) {
+            if (err) { cb(null, "Resolve: " + err); return; }
+            if (data.ok) { cb(data.path, null); } else { cb(null, data.error); }
         });
     }
 
@@ -620,7 +606,7 @@ var MapperManager = (function() {
         }
         if (!currentDeviceId) { showMessage("Add a device first", true); return; }
         showMessage("Finding device...", false);
-        resolveDevicePath(currentDeviceId, function(devPath, err) {
+        resolveDevicePath(currentDeviceId, true, function(devPath, err) {
             if (!devPath) { showMessage(err || "Device not connected", true); return; }
             startGestureRecord(devPath, name);
         });

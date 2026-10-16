@@ -112,7 +112,12 @@ grab = true
 
 Devices are matched by identity, never by `/dev/input/eventX` path (that index is
 unstable across reconnects): the mapper uses the Bluetooth MAC (`uniq`) when set,
-otherwise the device `name`. Set at least one.
+otherwise the device `name`. Set at least one. When several nodes share a MAC, as
+when the kernel splits a remote per HID application, a device with gesture
+bindings reads the node that reports contacts, and one without reads the node
+with the most keys. Keys that live on another node then need a device section
+of their own. Capture listens on the node the device reads, and Record gesture
+on the one it reads once it binds a gesture.
 
 Set `keyboard_layout` to an XKB layout code (e.g. `fr`, `de`, `ro`, `fr(oss)`) to type correctly on a non-US Bluetooth keyboard. The reader re-pins the `us` core keymap on every focus and `/usr/share/X11/xkb` is read-only, so the mapper bind-mounts a generated `us` symbols file over the system one; every re-pin then resolves to your layout, reverted when the daemon stops. Give a comma list for an Alt+Shift toggle (`us,ru`); it's a system-wide override taken from the first device that sets one. Leave it unset to keep the system default.
 

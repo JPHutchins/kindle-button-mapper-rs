@@ -1,4 +1,4 @@
-use evdev::{AttributeSetRef, Device, Key};
+use evdev::{AbsoluteAxisType, AttributeSetRef, Device, Key, PropType};
 use log::{debug, info, warn};
 use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
 use std::os::fd::AsFd;
@@ -32,11 +32,31 @@ pub fn mappable_keys(keys: Option<&AttributeSetRef<Key>>, mouse: bool) -> usize 
     })
 }
 
+pub fn reports_contacts(
+    props: &AttributeSetRef<PropType>,
+    axes: Option<&AttributeSetRef<AbsoluteAxisType>>,
+) -> bool {
+    props.contains(PropType::DIRECT)
+        || axes.is_some_and(|axes| axes.contains(AbsoluteAxisType::ABS_MT_POSITION_X))
+}
+
+pub fn device_reports_contacts(device: &Device) -> bool {
+    reports_contacts(device.properties(), device.supported_absolute_axes())
+}
+
+/// A kernel that splits a device per HID application gives every node the
+/// same uniq, and only a node that reports contacts can fire gestures.
+fn node_rank(binds_gestures: bool, contacts: bool, keys: usize) -> (bool, usize) {
+    (binds_gestures && contacts, keys)
+}
+
+#[derive(Debug, PartialEq)]
 pub struct InputHandler {
     device_name: Option<String>,
     device_uniq: Option<String>,
     grab: bool,
     mouse: bool,
+    binds_gestures: bool,
 }
 
 impl InputHandler {
@@ -51,15 +71,19 @@ impl InputHandler {
             device_uniq,
             grab,
             mouse,
+            binds_gestures: false,
+        }
+    }
+
+    pub fn with_gestures(self, binds_gestures: bool) -> Self {
+        Self {
+            binds_gestures,
+            ..self
         }
     }
 
     pub fn open(&self) -> Result<(Device, bool), String> {
-        let has_identity = self.device_uniq.as_deref().is_some_and(|u| !u.is_empty())
-            || self.device_name.as_deref().is_some_and(|n| !n.is_empty());
-        if !has_identity {
-            return Err("No device name or uniq specified".to_string());
-        }
+        self.require_identity()?;
 
         if let Some(dev) = self.scan_for_device()? {
             return self.finish_open(dev);
@@ -68,6 +92,22 @@ impl InputHandler {
         info!("Waiting for device to appear...");
         let dev = self.wait_for_matching_device()?;
         self.finish_open(dev)
+    }
+
+    /// The node `open` would read now, for a frontend that must listen on the
+    /// same one.
+    pub fn node_path(&self) -> Result<Option<PathBuf>, String> {
+        self.require_identity()?;
+        Ok(self.best_node()?.map(|(path, _)| path))
+    }
+
+    fn require_identity(&self) -> Result<(), String> {
+        let has_identity = self.device_uniq.as_deref().is_some_and(|u| !u.is_empty())
+            || self.device_name.as_deref().is_some_and(|n| !n.is_empty());
+        if !has_identity {
+            return Err("No device name or uniq specified".to_string());
+        }
+        Ok(())
     }
 
     fn matches_device(&self, dev: &Device) -> bool {
@@ -90,10 +130,17 @@ impl InputHandler {
     }
 
     fn scan_for_device(&self) -> Result<Option<Device>, String> {
+        Ok(self.best_node()?.map(|(path, dev)| {
+            info!("Found device at {path}", path = path.display());
+            dev
+        }))
+    }
+
+    fn best_node(&self) -> Result<Option<(PathBuf, Device)>, String> {
         let entries = fs::read_dir(INPUT_DIR)
             .map_err(|e| format!("Cannot open {}: {}", INPUT_DIR, e))?;
 
-        let mut best: Option<(usize, PathBuf, Device)> = None;
+        let mut best: Option<((bool, usize), PathBuf, Device)> = None;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -111,9 +158,14 @@ impl InputHandler {
                         continue;
                     }
                     let keys = mappable_keys(dev.supported_keys(), self.mouse);
-                    debug!("{} matches, {} mappable keys", path.display(), keys);
-                    if best.as_ref().is_none_or(|(most, _, _)| keys > *most) {
-                        best = Some((keys, path, dev));
+                    let contacts = device_reports_contacts(&dev);
+                    debug!(
+                        "{path} matches, {keys} mappable keys, reports contacts: {contacts}",
+                        path = path.display()
+                    );
+                    let rank = node_rank(self.binds_gestures, contacts, keys);
+                    if best.as_ref().is_none_or(|(top, _, _)| rank > *top) {
+                        best = Some((rank, path, dev));
                     }
                 }
                 Err(e) => {
@@ -121,10 +173,7 @@ impl InputHandler {
                 }
             }
         }
-        Ok(best.map(|(_, path, dev)| {
-            info!("Found device at {}", path.display());
-            dev
-        }))
+        Ok(best.map(|(_, path, dev)| (path, dev)))
     }
 
     fn wait_for_matching_device(&self) -> Result<Device, String> {
@@ -211,8 +260,59 @@ impl InputHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::{mappable_keys, uniq_matches};
-    use evdev::{AttributeSet, Key};
+    use super::{mappable_keys, node_rank, reports_contacts, uniq_matches};
+    use evdev::{AbsoluteAxisType, AttributeSet, Key, PropType};
+
+    #[test]
+    fn a_panel_reports_contacts_and_a_stick_does_not() {
+        let none = AttributeSet::<PropType>::new();
+        let direct = AttributeSet::from_iter([PropType::DIRECT]);
+        let multitouch = AttributeSet::from_iter([AbsoluteAxisType::ABS_MT_POSITION_X]);
+        let stick = AttributeSet::from_iter([AbsoluteAxisType::ABS_X, AbsoluteAxisType::ABS_Y]);
+
+        assert!(reports_contacts(&direct, None));
+        assert!(reports_contacts(&none, Some(&multitouch)));
+        assert!(!reports_contacts(&none, Some(&stick)));
+        assert!(!reports_contacts(&none, None));
+    }
+
+    #[test]
+    fn a_device_that_binds_gestures_reads_the_node_that_reports_contacts() {
+        // A touch remote split per HID application, both nodes with its address.
+        let none = AttributeSet::<PropType>::new();
+        let multitouch = AttributeSet::from_iter([AbsoluteAxisType::ABS_MT_POSITION_X]);
+        let touchscreen = AttributeSet::from_iter([Key::BTN_TOUCH]);
+        let consumer =
+            AttributeSet::from_iter([Key::KEY_VOLUMEUP, Key::KEY_VOLUMEDOWN, Key::KEY_PLAYPAUSE]);
+        let touchscreen_picked = |binds_gestures| {
+            node_rank(
+                binds_gestures,
+                reports_contacts(&none, Some(&multitouch)),
+                mappable_keys(Some(&touchscreen), false),
+            ) > node_rank(
+                binds_gestures,
+                reports_contacts(&none, None),
+                mappable_keys(Some(&consumer), false),
+            )
+        };
+
+        assert!(touchscreen_picked(true));
+        assert!(!touchscreen_picked(false));
+    }
+
+    #[test]
+    fn without_a_node_that_reports_contacts_the_most_keys_still_win() {
+        // A PW12 lists a Keyboard and a Mouse node under one address.
+        let keyboard = AttributeSet::from_iter([Key::KEY_A, Key::KEY_PAGEUP, Key::KEY_PAGEDOWN]);
+        let pointer = AttributeSet::from_iter([Key::BTN_LEFT, Key::BTN_RIGHT, Key::BTN_MIDDLE]);
+        let keyboard_picked = |binds_gestures| {
+            node_rank(binds_gestures, false, mappable_keys(Some(&keyboard), false))
+                > node_rank(binds_gestures, false, mappable_keys(Some(&pointer), false))
+        };
+
+        assert!(keyboard_picked(true));
+        assert!(keyboard_picked(false));
+    }
 
     #[test]
     fn a_mouse_node_loses_to_the_keyboard_node() {
