@@ -210,7 +210,8 @@ fn device_worker(mut cfg: config::DeviceConfig, mut settings: WorkerSettings) {
     let mut generation = reload::generation();
 
     loop {
-        let handler = InputHandler::new(cfg.name.clone(), cfg.uniq.clone(), cfg.grab, cfg.mouse);
+        let handler = InputHandler::new(cfg.name.clone(), cfg.uniq.clone(), cfg.grab, cfg.mouse)
+            .with_position(cfg.binds_position());
         match handler.open() {
             Ok((mut device, grabbed_at_open)) => {
                 // Only the opened node says whether this is a pad or a
