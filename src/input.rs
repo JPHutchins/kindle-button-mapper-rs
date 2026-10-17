@@ -58,6 +58,7 @@ impl NodeRank {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct InputHandler {
     device_name: Option<String>,
     device_uniq: Option<String>,
@@ -90,11 +91,7 @@ impl InputHandler {
     }
 
     pub fn open(&self) -> Result<(Device, bool), String> {
-        let has_identity = self.device_uniq.as_deref().is_some_and(|u| !u.is_empty())
-            || self.device_name.as_deref().is_some_and(|n| !n.is_empty());
-        if !has_identity {
-            return Err("No device name or uniq specified".to_string());
-        }
+        self.require_identity()?;
 
         if let Some(dev) = self.scan_for_device()? {
             return self.finish_open(dev);
@@ -103,6 +100,33 @@ impl InputHandler {
         info!("Waiting for device to appear...");
         let dev = self.wait_for_matching_device()?;
         self.finish_open(dev)
+    }
+
+    /// Every node of the device, for a frontend that has to hear a press
+    /// whichever node it comes from.
+    pub fn node_paths(&self) -> Result<Vec<PathBuf>, String> {
+        self.require_identity()?;
+        let entries =
+            fs::read_dir(INPUT_DIR).map_err(|e| format!("Cannot open {INPUT_DIR}: {e}"))?;
+        Ok(entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .and_then(OsStr::to_str)
+                    .is_some_and(|name| name.starts_with("event"))
+            })
+            .filter(|path| Device::open(path).is_ok_and(|dev| self.matches_device(&dev)))
+            .collect())
+    }
+
+    fn require_identity(&self) -> Result<(), String> {
+        let has_identity = self.device_uniq.as_deref().is_some_and(|u| !u.is_empty())
+            || self.device_name.as_deref().is_some_and(|n| !n.is_empty());
+        if !has_identity {
+            return Err("No device name or uniq specified".to_string());
+        }
+        Ok(())
     }
 
     fn matches_device(&self, dev: &Device) -> bool {
