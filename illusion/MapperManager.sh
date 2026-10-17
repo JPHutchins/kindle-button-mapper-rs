@@ -50,6 +50,12 @@ start_helper() {
     sleep 1
 }
 
+unload_app() {
+    lipc-set-prop com.lab126.appmgrd stop "app://$APP_ID" 2>/dev/null
+    sleep 1
+    rm -rf "/var/local/mesquite/$APP_ID" /var/local/mesquite/MapperManager 2>/dev/null
+}
+
 launch_app() {
     log_msg "Launching $APP_NAME"
     cat "$APP_DIR/config.xml" "$APP_DIR/index.html" "$APP_DIR/style.css" "$APP_DIR/script.js" >/dev/null 2>&1
@@ -60,5 +66,6 @@ launch_app() {
 
 install_waf
 start_helper
+unload_app
 launch_app
 log_msg "MapperManager scriptlet done"
