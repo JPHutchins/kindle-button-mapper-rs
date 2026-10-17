@@ -32,16 +32,33 @@ pub fn mappable_keys(keys: Option<&AttributeSetRef<Key>>, mouse: bool) -> usize 
     })
 }
 
+/// Whether a node's ABS_X/ABS_Y track a contact rather than a stick. A panel
+/// says so itself, as a direct-input device or with the multitouch axes. A
+/// remote that emulates one does neither: hid-input only marks a Pen
+/// application direct, so a Touch Screen collection arrives as BTN_TOUCH next
+/// to plain ABS_X/ABS_Y, which is how it gives itself away.
 pub fn reports_contacts(
     props: &AttributeSetRef<PropType>,
+    keys: Option<&AttributeSetRef<Key>>,
     axes: Option<&AttributeSetRef<AbsoluteAxisType>>,
+    gamepad: bool,
 ) -> bool {
+    let axis = |a| axes.is_some_and(|axes| axes.contains(a));
     props.contains(PropType::DIRECT)
-        || axes.is_some_and(|axes| axes.contains(AbsoluteAxisType::ABS_MT_POSITION_X))
+        || axis(AbsoluteAxisType::ABS_MT_POSITION_X)
+        || (!gamepad
+            && keys.is_some_and(|keys| keys.contains(Key::BTN_TOUCH))
+            && axis(AbsoluteAxisType::ABS_X)
+            && axis(AbsoluteAxisType::ABS_Y))
 }
 
 pub fn device_reports_contacts(device: &Device) -> bool {
-    reports_contacts(device.properties(), device.supported_absolute_axes())
+    reports_contacts(
+        device.properties(),
+        device.supported_keys(),
+        device.supported_absolute_axes(),
+        crate::is_gamepad(device),
+    )
 }
 
 pub fn opened_from(open: &impl std::os::fd::AsRawFd, node: &Path) -> bool {
@@ -273,6 +290,32 @@ mod tests {
     use std::path::Path;
 
     #[test]
+    fn a_remote_that_emulates_a_touchscreen_reports_contacts() {
+        let none = AttributeSet::<PropType>::new();
+        let xy = AttributeSet::from_iter([AbsoluteAxisType::ABS_X, AbsoluteAxisType::ABS_Y]);
+        // An F3 ring's touchscreen node on 5.15: no input property.
+        let ring = AttributeSet::from_iter([Key::BTN_TOUCH, Key::BTN_TOOL_PEN, Key::BTN_0]);
+        assert!(reports_contacts(&none, Some(&ring), Some(&xy), false));
+
+        // A pad's stick stays a stick, whatever buttons it has.
+        let pad = AttributeSet::from_iter([Key::BTN_SOUTH, Key::BTN_TOUCH]);
+        assert!(!reports_contacts(&none, Some(&pad), Some(&xy), true));
+
+        // Axes without BTN_TOUCH, or BTN_TOUCH without axes, are no contact.
+        let keyboard = AttributeSet::from_iter([Key::KEY_A, Key::KEY_PAGEDOWN]);
+        assert!(!reports_contacts(&none, Some(&keyboard), Some(&xy), false));
+        assert!(!reports_contacts(&none, Some(&ring), None, false));
+
+        // hid-input marks a Digitizer application a pointer, not direct. One
+        // with a tip is still a contact device, by its BTN_TOUCH.
+        let pointer = AttributeSet::from_iter([PropType::POINTER]);
+        let tip = AttributeSet::from_iter([Key::BTN_TOUCH, Key::BTN_TOOL_PEN]);
+        assert!(reports_contacts(&pointer, Some(&tip), Some(&xy), false));
+        let mouse = AttributeSet::from_iter([Key::BTN_LEFT]);
+        assert!(!reports_contacts(&pointer, Some(&mouse), Some(&xy), false));
+    }
+
+    #[test]
     fn a_node_is_told_apart_by_its_device_number() {
         let null = std::fs::File::open("/dev/null").unwrap();
 
@@ -288,34 +331,50 @@ mod tests {
         let multitouch = AttributeSet::from_iter([AbsoluteAxisType::ABS_MT_POSITION_X]);
         let stick = AttributeSet::from_iter([AbsoluteAxisType::ABS_X, AbsoluteAxisType::ABS_Y]);
 
-        assert!(reports_contacts(&direct, None));
-        assert!(reports_contacts(&none, Some(&multitouch)));
-        assert!(!reports_contacts(&none, Some(&stick)));
-        assert!(!reports_contacts(&none, None));
+        assert!(reports_contacts(&direct, None, None, false));
+        assert!(reports_contacts(&none, None, Some(&multitouch), false));
+        assert!(!reports_contacts(&none, None, Some(&stick), false));
+        assert!(!reports_contacts(&none, None, None, false));
     }
 
     #[test]
     fn a_device_that_binds_gestures_reads_the_node_that_reports_contacts() {
-        // A touch remote split per HID application, both nodes with its address.
+        // A touch remote split per HID application, both nodes with its address:
+        // a multitouch panel, and an F3 ring's emulated touchscreen.
         let none = AttributeSet::<PropType>::new();
-        let multitouch = AttributeSet::from_iter([AbsoluteAxisType::ABS_MT_POSITION_X]);
-        let touchscreen = AttributeSet::from_iter([Key::BTN_TOUCH]);
-        let consumer =
-            AttributeSet::from_iter([Key::KEY_VOLUMEUP, Key::KEY_VOLUMEDOWN, Key::KEY_PLAYPAUSE]);
-        let touchscreen_picked = |binds_gestures| {
-            node_rank(
-                binds_gestures,
-                reports_contacts(&none, Some(&multitouch)),
-                mappable_keys(Some(&touchscreen), false),
-            ) > node_rank(
-                binds_gestures,
-                reports_contacts(&none, None),
-                mappable_keys(Some(&consumer), false),
-            )
-        };
+        let consumer = AttributeSet::from_iter([
+            Key::KEY_VOLUMEUP,
+            Key::KEY_VOLUMEDOWN,
+            Key::KEY_MUTE,
+            Key::KEY_PLAYPAUSE,
+        ]);
+        let touchscreens = [
+            (
+                AttributeSet::from_iter([Key::BTN_TOUCH]),
+                AttributeSet::from_iter([AbsoluteAxisType::ABS_MT_POSITION_X]),
+            ),
+            (
+                AttributeSet::from_iter([Key::BTN_TOUCH, Key::BTN_TOOL_PEN, Key::BTN_0]),
+                AttributeSet::from_iter([AbsoluteAxisType::ABS_X, AbsoluteAxisType::ABS_Y]),
+            ),
+        ];
 
-        assert!(touchscreen_picked(true));
-        assert!(!touchscreen_picked(false));
+        for (keys, axes) in &touchscreens {
+            let touchscreen_picked = |binds_gestures| {
+                node_rank(
+                    binds_gestures,
+                    reports_contacts(&none, Some(keys), Some(axes), false),
+                    mappable_keys(Some(keys), false),
+                ) > node_rank(
+                    binds_gestures,
+                    reports_contacts(&none, Some(&consumer), None, false),
+                    mappable_keys(Some(&consumer), false),
+                )
+            };
+
+            assert!(touchscreen_picked(true));
+            assert!(!touchscreen_picked(false));
+        }
     }
 
     #[test]
