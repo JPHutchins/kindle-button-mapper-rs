@@ -1,4 +1,4 @@
-use evdev::{Device, InputEventKind};
+use evdev::{Device, InputEventKind, Key};
 use log::{error, info, warn};
 use std::fs;
 use std::cmp::Ordering;
@@ -527,6 +527,8 @@ fn capture(query: &std::collections::HashMap<String, String>, config_path: &str)
         Err(e) => return (200, json_err(&e)),
     };
     let ranges: Vec<_> = nodes.iter().map(crate::stick_ranges).collect();
+    let contacts: Vec<bool> = nodes.iter().map(reports_contacts).collect();
+    let mut touching = vec![false; nodes.len()];
     let deadzone = crate::config::Config::load(config_path).map_or(50, |c| c.stick_deadzone);
 
     let deadline = Instant::now() + Duration::from_millis(timeout_ms);
@@ -544,6 +546,10 @@ fn capture(query: &std::collections::HashMap<String, String>, config_path: &str)
         };
         for (node, ev) in events {
             match ev.kind() {
+                InputEventKind::Key(Key::BTN_TOUCH) if contacts[node] => {
+                    touching[node] = ev.value() != 0;
+                }
+                InputEventKind::Key(k) if contacts[node] && (touching[node] || is_tool(k)) => {}
                 InputEventKind::Key(k) => {
                     if ev.value() != 1 {
                         continue;
@@ -586,6 +592,36 @@ fn capture(query: &std::collections::HashMap<String, String>, config_path: &str)
     }
     drop(lock);
     (200, json_err("timeout"))
+}
+
+/// A remote that reports its buttons as contacts, BTN_TOUCH next to ABS_X and
+/// ABS_Y on a node that is no touchscreen (like an F3 ring), tells them apart
+/// by the contact's motion alone: its tool keys, and the keys that go down
+/// with a contact, BTN_TOUCH among them, are the same for every button.
+fn reports_contacts(device: &Device) -> bool {
+    device
+        .supported_keys()
+        .is_some_and(|keys| keys.contains(Key::BTN_TOUCH))
+        && crate::input::reports_position(device.supported_absolute_axes())
+        && !crate::input::is_touchscreen(device)
+}
+
+fn is_tool(key: Key) -> bool {
+    matches!(
+        key,
+        Key::BTN_TOOL_PEN
+            | Key::BTN_TOOL_RUBBER
+            | Key::BTN_TOOL_BRUSH
+            | Key::BTN_TOOL_PENCIL
+            | Key::BTN_TOOL_AIRBRUSH
+            | Key::BTN_TOOL_FINGER
+            | Key::BTN_TOOL_MOUSE
+            | Key::BTN_TOOL_LENS
+            | Key::BTN_TOOL_QUINTTAP
+            | Key::BTN_TOOL_DOUBLETAP
+            | Key::BTN_TOOL_TRIPLETAP
+            | Key::BTN_TOOL_QUADTAP
+    )
 }
 
 // Non-blocking so the deadline check actually fires when the device

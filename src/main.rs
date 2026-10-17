@@ -315,10 +315,7 @@ fn run_event_loop(
     // Non-blocking + poll so we can notice a capture pause while idle.
     set_nonblocking(device.as_raw_fd());
     let ranges = stick_ranges(device);
-    let touch_device = device.properties().contains(evdev::PropType::DIRECT)
-        || device
-            .supported_absolute_axes()
-            .is_some_and(|a| a.contains(evdev::AbsoluteAxisType::ABS_MT_POSITION_X));
+    let touch_device = input::is_touchscreen(device);
     let mut grab = grab;
     let mut grabbed = grab;
     let mut keyboard = wants_keyboard(cfg, device).then(vkeyboard::hold);

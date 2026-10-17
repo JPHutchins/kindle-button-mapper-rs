@@ -1,4 +1,4 @@
-use evdev::{AbsoluteAxisType, AttributeSetRef, Device, Key};
+use evdev::{AbsoluteAxisType, AttributeSetRef, Device, Key, PropType};
 use log::{debug, info, warn};
 use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
 use std::os::fd::AsFd;
@@ -37,6 +37,13 @@ pub fn reports_position(axes: Option<&AttributeSetRef<AbsoluteAxisType>>) -> boo
         (axes.contains(AbsoluteAxisType::ABS_X) && axes.contains(AbsoluteAxisType::ABS_Y))
             || axes.contains(AbsoluteAxisType::ABS_MT_POSITION_X)
     })
+}
+
+pub fn is_touchscreen(device: &Device) -> bool {
+    device.properties().contains(PropType::DIRECT)
+        || device
+            .supported_absolute_axes()
+            .is_some_and(|a| a.contains(AbsoluteAxisType::ABS_MT_POSITION_X))
 }
 
 /// A kernel that splits a device per HID application gives every node the
