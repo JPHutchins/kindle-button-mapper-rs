@@ -44,6 +44,14 @@ pub fn device_reports_contacts(device: &Device) -> bool {
     reports_contacts(device.properties(), device.supported_absolute_axes())
 }
 
+pub fn opened_from(open: &impl std::os::fd::AsRawFd, node: &Path) -> bool {
+    use nix::sys::stat::{fstat, stat};
+    matches!(
+        (fstat(open.as_raw_fd()), stat(node)),
+        (Ok(open), Ok(node)) if open.st_rdev == node.st_rdev
+    )
+}
+
 /// A kernel that splits a device per HID application gives every node the
 /// same uniq, and only a node that reports contacts can fire gestures.
 fn node_rank(binds_gestures: bool, contacts: bool, keys: usize) -> (bool, usize) {
@@ -260,8 +268,18 @@ impl InputHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::{mappable_keys, node_rank, reports_contacts, uniq_matches};
+    use super::{mappable_keys, node_rank, opened_from, reports_contacts, uniq_matches};
     use evdev::{AbsoluteAxisType, AttributeSet, Key, PropType};
+    use std::path::Path;
+
+    #[test]
+    fn a_node_is_told_apart_by_its_device_number() {
+        let null = std::fs::File::open("/dev/null").unwrap();
+
+        assert!(opened_from(&null, Path::new("/dev/null")));
+        assert!(!opened_from(&null, Path::new("/dev/zero")));
+        assert!(!opened_from(&null, Path::new("/dev/no-such-node")));
+    }
 
     #[test]
     fn a_panel_reports_contacts_and_a_stick_does_not() {

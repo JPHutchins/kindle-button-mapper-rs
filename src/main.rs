@@ -183,6 +183,8 @@ enum Exit {
     Disconnected(String),
     /// The config no longer lists this device, so stop touching its node.
     Removed,
+    /// The reloaded bindings are read from another of the device's nodes.
+    Reselect,
 }
 
 const PARK_POLL: Duration = Duration::from_millis(500);
@@ -210,8 +212,7 @@ fn device_worker(mut cfg: config::DeviceConfig, mut settings: WorkerSettings) {
     let mut generation = reload::generation();
 
     loop {
-        let handler = InputHandler::new(cfg.name.clone(), cfg.uniq.clone(), cfg.grab, cfg.mouse)
-            .with_gestures(!cfg.gesture_mappings.is_empty());
+        let handler = input_handler(&cfg);
         match handler.open() {
             Ok((mut device, grabbed_at_open)) => {
                 // Only the opened node says whether this is a pad or a
@@ -285,6 +286,11 @@ fn device_worker(mut cfg: config::DeviceConfig, mut settings: WorkerSettings) {
                         mapper = Mapper::new(&cfg, &settings);
                         continue;
                     }
+                    Exit::Reselect => {
+                        drop(device);
+                        mapper = Mapper::new(&cfg, &settings);
+                        continue;
+                    }
                     Exit::Disconnected(e) => {
                         error!("[{}] event loop error: {}", cfg.id, e);
                         if let Some(ref script) = settings.on_disconnect {
@@ -301,6 +307,11 @@ fn device_worker(mut cfg: config::DeviceConfig, mut settings: WorkerSettings) {
         info!("[{}] reconnecting in 1 second...", cfg.id);
         thread::sleep(Duration::from_secs(1));
     }
+}
+
+fn input_handler(cfg: &config::DeviceConfig) -> InputHandler {
+    InputHandler::new(cfg.name.clone(), cfg.uniq.clone(), cfg.grab, cfg.mouse)
+        .with_gestures(!cfg.gesture_mappings.is_empty())
 }
 
 fn run_event_loop(
@@ -336,6 +347,18 @@ fn run_event_loop(
                     info!("[{}] applying reloaded mappings", cfg.id);
                     if let Some(globals) = reload::settings() {
                         *settings = globals;
+                    }
+                    if fresh.gesture_mappings.is_empty() != cfg.gesture_mappings.is_empty()
+                        && input_handler(&fresh).node_path().is_ok_and(|node| {
+                            node.is_some_and(|node| !input::opened_from(device, &node))
+                        })
+                    {
+                        info!(
+                            "[{id}] reloaded bindings read another node, reopening",
+                            id = cfg.id
+                        );
+                        *cfg = fresh;
+                        return Exit::Reselect;
                     }
                     // Switching who owns the device has to bite now rather
                     // than on the next reconnect, or the toggle looks broken.
