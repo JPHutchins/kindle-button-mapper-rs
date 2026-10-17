@@ -28,6 +28,8 @@ fi
 echo "1. App files at $APP_DIR"
 
 echo "2. Clearing cached app assets"
+lipc-set-prop com.lab126.appmgrd stop "app://$APP_ID" 2>/dev/null
+sleep 1
 rm -rf "/var/local/mesquite/$APP_ID" /var/local/mesquite/MapperManager 2>/dev/null
 
 echo "3. Setting scriptlet permissions"
